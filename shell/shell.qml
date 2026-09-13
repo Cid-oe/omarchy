@@ -257,7 +257,8 @@ ShellRoot {
     onActiveChanged: if (!active) shell.bar = null
     onStatusChanged: {
       if (status === Loader.Error) {
-        console.warn("bar option " + shell.activeBarId + " failed to load, falling back to " + shell.defaultBarId)
+        var detail = errorString && errorString() ? errorString() : ""
+        console.warn("bar option " + shell.activeBarId + " failed to load, falling back to " + shell.defaultBarId + (detail ? ": " + detail : ""))
         shell.failedBarId = shell.activeBarId
       }
     }
