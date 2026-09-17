@@ -35,6 +35,11 @@ BarWidget {
     root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + id + "\" })"))
   }
 
+  function moveWindowToWorkspace(id) {
+    if (!root.bar) return
+    root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.window.move({ workspace = \"" + id + "\", follow = false })"))
+  }
+
   readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
 
   implicitWidth: grid.implicitWidth + trailingGap
@@ -51,21 +56,34 @@ BarWidget {
     Repeater {
       model: root.workspaceIds()
 
-      WidgetButton {
+      DropArea {
+        id: dropTarget
         required property int modelData
 
         readonly property var workspace: root.workspaceById(modelData)
         readonly property bool occupied: workspace !== null && workspace.toplevels.values.length > 0
         readonly property bool focused: Hyprland.focusedWorkspace !== null && Hyprland.focusedWorkspace.id === modelData
 
-        bar: root.bar
-        text: focused ? "\uDB85\uDCFB" : (modelData === 10 ? "0" : String(modelData))
-        opacity: occupied || focused ? 1 : 0.5
-        horizontalMargin: 6
-        verticalPadding: 6
-        fixedWidth: root.vertical ? root.barSize : Style.space(20)
-        fixedHeight: root.barSize
-        onPressed: function() { root.focusWorkspace(modelData) }
+        implicitWidth: pill.implicitWidth
+        implicitHeight: pill.implicitHeight
+
+        onDropped: function(drop) {
+          root.moveWindowToWorkspace(modelData)
+        }
+
+        WidgetButton {
+          id: pill
+          anchors.fill: parent
+          bar: root.bar
+          text: dropTarget.focused ? "\uDB85\uDCFB" : (dropTarget.modelData === 10 ? "0" : String(dropTarget.modelData))
+          opacity: dropTarget.containsDrag ? 1 : (dropTarget.occupied || dropTarget.focused ? 1 : 0.5)
+          active: dropTarget.containsDrag
+          horizontalMargin: 6
+          verticalPadding: 6
+          fixedWidth: root.vertical ? root.barSize : Style.space(20)
+          fixedHeight: root.barSize
+          onPressed: function() { root.focusWorkspace(dropTarget.modelData) }
+        }
       }
     }
   }
