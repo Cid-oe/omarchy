@@ -20,7 +20,7 @@ You navigate between the window you want to be active with `Super + Arrow`. This
 
 If you hit `Super + Shift + 2`, you'll move the current focused application onto the second workspace. `Super + Shift + 1` moves it back. (And `Super + Shift + Alt + 2` will move the current focused application onto the second workspace without switching to it).
 
-If you hold down `Super` and use the mouse to click on a window, you'll be able to rearrange where it sits. If you hold `Super` and use the right button on the mouse, you can freely resize the window.
+If you hold down `Super` and use the left mouse button to drag a window, you can freely rearrange where it sits (or drag & drop a window directly onto any workspace pill in the top bar to move it). If you hold `Super` and use the right mouse button, you can freely resize the window. Scrolling the mouse wheel over the top bar workspaces instantly switches between them, while right-clicking a workspace pill moves the active window directly to that workspace. On the active window bar widget, middle-clicking toggles floating and scrolling cycles through active windows.
 
 You close a window on `Super + W` or `Super + Q` (and close all windows on `Ctrl + Alt + Delete`).
 

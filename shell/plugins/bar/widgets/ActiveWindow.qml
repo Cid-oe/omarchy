@@ -42,6 +42,17 @@ BarWidget {
     }
   }
 
+  function toggleFloating() {
+    if (!root.bar) return
+    root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.window.float({ action = \"toggle\" })"))
+  }
+
+  function cycleWindow(delta) {
+    if (!root.bar || delta === 0) return
+    var action = delta > 0 ? "hl.dsp.window.cycle_next({ next = false })" : "hl.dsp.window.cycle_next()"
+    root.bar.run("hyprctl dispatch " + Util.shellQuote(action))
+  }
+
   MouseArea {
     anchors.fill: parent
     hoverEnabled: true
@@ -51,12 +62,15 @@ BarWidget {
     onClicked: function(mouse) {
       if (!root.toplevel) return
       if (mouse.button === Qt.MiddleButton) {
-        root.toplevel.close()
+        root.toggleFloating()
       } else if (mouse.button === Qt.RightButton) {
         root.toplevel.close()
       } else {
         root.toplevel.activate()
       }
+    }
+    onWheel: function(wheel) {
+      root.cycleWindow(wheel.angleDelta.y)
     }
     onEntered: if (root.bar) root.bar.showTooltip(root, root.title)
     onExited: if (root.bar) root.bar.hideTooltip(root)
