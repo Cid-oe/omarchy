@@ -3,7 +3,14 @@ ufw default deny incoming
 ufw default allow outgoing
 
 # Allow ports for LocalSend from local/private networks (RFC1918 and IPv6 ULA/link-local).
-for net in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 fc00::/7 fe80::/10; do
+localsend_nets=(10.0.0.0/8 172.16.0.0/12 192.168.0.0/16)
+
+# ufw refuses any IPv6 rule when IPv6 is turned off in its config.
+if grep -Eqx 'IPV6="?yes"?' "${OMARCHY_UFW_DEFAULTS:-/etc/default/ufw}"; then
+  localsend_nets+=(fc00::/7 fe80::/10)
+fi
+
+for net in "${localsend_nets[@]}"; do
   ufw allow in proto udp from "$net" to any port 53317 comment 'localsend'
   ufw allow in proto tcp from "$net" to any port 53317 comment 'localsend'
 done

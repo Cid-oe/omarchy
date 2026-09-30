@@ -13,6 +13,10 @@ printf 'ufw %s\n' "$*" >>"$TEST_LOG"
 if [[ ${1:-} == status ]]; then
   echo 'Status: inactive'
 fi
+if [[ $* == *" from "*:* ]] && ! grep -qx 'IPV6=yes' "$OMARCHY_UFW_DEFAULTS"; then
+  echo 'ERROR: IPv6 support not enabled' >&2
+  exit 1
+fi
 STUB
 
 cat >"$stub_dir/ufw-docker" <<'STUB'
@@ -43,6 +47,8 @@ STUB
 chmod +x "$stub_dir"/*
 
 export TEST_LOG="$stub_dir/firewall.log"
+export OMARCHY_UFW_DEFAULTS="$stub_dir/ufw-defaults"
+echo 'IPV6=yes' >"$OMARCHY_UFW_DEFAULTS"
 PATH="$stub_dir:$PATH" bash -eE -c 'source "$1"' bash "$ROOT/install/config/firewall.sh"
 
 grep -q '^ufw-docker install$' "$TEST_LOG" || fail "ufw-docker rules are installed"
@@ -57,3 +63,13 @@ done
 ! grep -Fq 'ufw allow 53317' "$TEST_LOG" || fail "unscoped LocalSend port rule present"
 
 pass "firewall config installs ufw-docker rules without activating live UFW"
+
+rm -f "$TEST_LOG"
+echo 'IPV6=no' >"$OMARCHY_UFW_DEFAULTS"
+PATH="$stub_dir:$PATH" bash -eE -c 'source "$1"' bash "$ROOT/install/config/firewall.sh" ||
+  fail "firewall config completes with IPv6 turned off in ufw"
+grep -Fq "ufw allow in proto tcp from 192.168.0.0/16 to any port 53317 comment localsend" "$TEST_LOG" ||
+  fail "LocalSend IPv4 rules are installed with IPv6 turned off"
+grep -q '^systemctl enable ufw$' "$TEST_LOG" || fail "ufw is enabled for next boot with IPv6 turned off"
+
+pass "firewall config leaves out the IPv6 LocalSend rules when ufw has IPv6 turned off"
