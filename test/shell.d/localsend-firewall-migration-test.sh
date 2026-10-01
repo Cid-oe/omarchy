@@ -45,15 +45,18 @@ case "$*" in
     ;;
 esac
 STUB
+# ufw's IPv6 rule file lives in /etc, so point the migration's reads and edits of it at the test's copy.
 cat >"$stub_bin/sudo" <<'STUB'
 #!/bin/bash
-exec "$@"
+exec "${@//\/etc\/ufw\/user6.rules/$UFW_RULES6}"
 STUB
 chmod +x "$stub_bin/ufw" "$stub_bin/sudo"
 
+rules6="$test_dir/user6.rules"
+
 run_migration() {
   rm -f "$calls"
-  UFW_RULES="$rules" UFW_CALLS="$calls" UFW_IPV6="$ipv6" PATH="$stub_bin:$ROOT/bin:$PATH" \
+  UFW_RULES="$rules" UFW_RULES6="$rules6" UFW_CALLS="$calls" UFW_IPV6="$ipv6" PATH="$stub_bin:$ROOT/bin:$PATH" \
     bash -euo pipefail "$migration" >/dev/null 2>&1
 }
 
@@ -90,3 +93,31 @@ run_migration || fail "migration completes with IPv6 turned off in ufw"
 grep -Fqx "ufw allow from 192.168.0.0/16 to any port 53317 proto tcp comment 'localsend'" "$rules" ||
   fail "migration adds the IPv4 rules with IPv6 turned off"
 pass "migration scopes LocalSend to IPv4 private networks when ufw has IPv6 turned off"
+
+# With IPv6 off ufw neither reads nor writes user6.rules, so the stock IPv6 rules sit there until it is turned back on.
+cat >"$rules6" <<'RULES'
+### RULES ###
+
+### tuple ### allow udp 53317 ::/0 any ::/0 in
+-A ufw6-user-input -p udp --dport 53317 -j ACCEPT
+
+### tuple ### allow tcp 53317 ::/0 any ::/0 in
+-A ufw6-user-input -p tcp --dport 53317 -j ACCEPT
+
+### tuple ### allow tcp 53317 ::/0 any fd00::/8 in
+-A ufw6-user-input -p tcp --dport 53317 -s fd00::/8 -j ACCEPT
+
+### tuple ### allow any 22 ::/0 any ::/0 in
+-A ufw6-user-input -p tcp --dport 22 -j ACCEPT
+
+### END RULES ###
+RULES
+printf '%s\n' "ufw allow 53317/udp" "ufw allow 53317/tcp" >"$rules"
+run_migration || fail "migration completes with unscoped IPv6 rules saved while IPv6 is off"
+! grep -Eq '53317 ::/0 any ::/0|--dport 53317 -j ACCEPT' "$rules6" ||
+  fail "migration drops the saved unscoped IPv6 rules"
+grep -Fqx -- "-A ufw6-user-input -p tcp --dport 53317 -s fd00::/8 -j ACCEPT" "$rules6" ||
+  fail "migration leaves a scoped IPv6 LocalSend rule alone"
+grep -Fqx -- "-A ufw6-user-input -p tcp --dport 22 -j ACCEPT" "$rules6" || fail "migration leaves unrelated IPv6 rules alone"
+grep -Fqx "### END RULES ###" "$rules6" || fail "migration keeps the rest of the IPv6 rule file"
+pass "migration drops the unscoped IPv6 rules ufw keeps while IPv6 is off"
