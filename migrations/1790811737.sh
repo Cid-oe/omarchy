@@ -3,12 +3,12 @@ echo "Limit the LocalSend firewall rule to private and local networks"
 omarchy-cmd-present ufw || exit 0
 
 # Installs before this opened 53317 to Anywhere, which on IPv6 is usually the
-# whole internet. Replace only that exact rule, so a machine that closed it stays closed.
+# whole internet. Replace only that exact rule, so a machine that removed it is left alone.
 added=$(sudo ufw show added)
 nets=(10.0.0.0/8 172.16.0.0/12 192.168.0.0/16)
 
-# ufw refuses any IPv6 rule when IPv6 is turned off in its config.
-if grep -Eqx 'IPV6="?yes"?' "${OMARCHY_UFW_DEFAULTS:-/etc/default/ufw}"; then
+# ufw refuses IPv6 rules when IPv6 is off in its config or the kernel, so ask it first.
+if sudo ufw --dry-run allow from fe80::/10 to any port 53317 >/dev/null 2>&1; then
   nets+=(fc00::/7 fe80::/10)
 fi
 

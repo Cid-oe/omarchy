@@ -13,7 +13,7 @@ printf 'ufw %s\n' "$*" >>"$TEST_LOG"
 if [[ ${1:-} == status ]]; then
   echo 'Status: inactive'
 fi
-if [[ $* == *" from "*:* ]] && ! grep -qx 'IPV6=yes' "$OMARCHY_UFW_DEFAULTS"; then
+if [[ $* == *" from "*:* && $UFW_IPV6 != "yes" ]]; then
   echo 'ERROR: IPv6 support not enabled' >&2
   exit 1
 fi
@@ -47,8 +47,7 @@ STUB
 chmod +x "$stub_dir"/*
 
 export TEST_LOG="$stub_dir/firewall.log"
-export OMARCHY_UFW_DEFAULTS="$stub_dir/ufw-defaults"
-echo 'IPV6=yes' >"$OMARCHY_UFW_DEFAULTS"
+export UFW_IPV6=yes
 PATH="$stub_dir:$PATH" bash -eE -c 'source "$1"' bash "$ROOT/install/config/firewall.sh"
 
 grep -q '^ufw-docker install$' "$TEST_LOG" || fail "ufw-docker rules are installed"
@@ -65,7 +64,7 @@ done
 pass "firewall config installs ufw-docker rules without activating live UFW"
 
 rm -f "$TEST_LOG"
-echo 'IPV6=no' >"$OMARCHY_UFW_DEFAULTS"
+UFW_IPV6=no
 PATH="$stub_dir:$PATH" bash -eE -c 'source "$1"' bash "$ROOT/install/config/firewall.sh" ||
   fail "firewall config completes with IPv6 turned off in ufw"
 grep -Fq "ufw allow in proto tcp from 192.168.0.0/16 to any port 53317 comment localsend" "$TEST_LOG" ||

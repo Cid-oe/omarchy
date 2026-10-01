@@ -5,8 +5,8 @@ ufw default allow outgoing
 # Allow ports for LocalSend from local/private networks (RFC1918 and IPv6 ULA/link-local).
 localsend_nets=(10.0.0.0/8 172.16.0.0/12 192.168.0.0/16)
 
-# ufw refuses any IPv6 rule when IPv6 is turned off in its config.
-if grep -Eqx 'IPV6="?yes"?' "${OMARCHY_UFW_DEFAULTS:-/etc/default/ufw}"; then
+# ufw refuses IPv6 rules when IPv6 is off in its config or the kernel, so ask it first.
+if ufw --dry-run allow from fe80::/10 to any port 53317 >/dev/null 2>&1; then
   localsend_nets+=(fc00::/7 fe80::/10)
 fi
 

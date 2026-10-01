@@ -15,7 +15,6 @@ trap 'rm -rf "$test_dir"' EXIT
 stub_bin="$test_dir/bin"
 rules="$test_dir/rules"
 calls="$test_dir/calls"
-defaults="$test_dir/ufw-defaults"
 mkdir -p "$stub_bin"
 
 # ufw keeps its added rules in a file, in the form `ufw show added` prints them.
@@ -31,8 +30,14 @@ case "$*" in
     grep -Fvx "ufw allow $3" "$UFW_RULES" >"$UFW_RULES.new" || true
     mv "$UFW_RULES.new" "$UFW_RULES"
     ;;
+  "--dry-run allow from "*)
+    if [[ $4 == *:* && $UFW_IPV6 != "yes" ]]; then
+      echo 'ERROR: IPv6 support not enabled' >&2
+      exit 1
+    fi
+    ;;
   "allow in proto "*)
-    if [[ $6 == *:* ]] && ! grep -qx 'IPV6=yes' "$OMARCHY_UFW_DEFAULTS"; then
+    if [[ $6 == *:* && $UFW_IPV6 != "yes" ]]; then
       echo 'ERROR: IPv6 support not enabled' >&2
       exit 1
     fi
@@ -48,12 +53,12 @@ chmod +x "$stub_bin/ufw" "$stub_bin/sudo"
 
 run_migration() {
   rm -f "$calls"
-  UFW_RULES="$rules" UFW_CALLS="$calls" OMARCHY_UFW_DEFAULTS="$defaults" PATH="$stub_bin:$ROOT/bin:$PATH" \
+  UFW_RULES="$rules" UFW_CALLS="$calls" UFW_IPV6="$ipv6" PATH="$stub_bin:$ROOT/bin:$PATH" \
     bash -euo pipefail "$migration" >/dev/null 2>&1
 }
 
 nets=(10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 fc00::/7 fe80::/10)
-echo 'IPV6=yes' >"$defaults"
+ipv6=yes
 
 printf '%s\n' "ufw allow 53317/udp" "ufw allow 53317/tcp" "ufw allow 22" >"$rules"
 run_migration || fail "migration runs on an install with the unscoped rules"
@@ -78,7 +83,7 @@ run_migration || fail "migration runs on an install without the LocalSend rules"
 ! grep -q 53317 "$rules" || fail "migration does not open LocalSend where it was closed"
 pass "migration leaves a machine without the LocalSend rules closed"
 
-echo 'IPV6=no' >"$defaults"
+ipv6=no
 printf '%s\n' "ufw allow 53317/udp" "ufw allow 53317/tcp" >"$rules"
 run_migration || fail "migration completes with IPv6 turned off in ufw"
 ! grep -Eq '^ufw allow 53317/(udp|tcp)$' "$rules" || fail "migration removes the unscoped rules with IPv6 turned off"
