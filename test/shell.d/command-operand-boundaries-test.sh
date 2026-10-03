@@ -224,6 +224,17 @@ setsid_argv=$(<"$setsid_calls")
   fail "launch-editor --inline passes wait flag and blocks on graphical editor" "$setsid_argv"
 pass "launch-editor --inline passes wait flag and blocks on graphical editor"
 
+printf 'gnome-text-editor\n' >"$fake_home/.local/state/omarchy/defaults/editor"
+cp "$mock_bin/code" "$mock_bin/gnome-text-editor"
+
+HOME="$fake_home" PATH="$mock_bin:$ROOT/bin:$PATH" OMARCHY_TEST_SETSID_CALLS="$setsid_calls" \
+  "$ROOT/bin/omarchy-launch-editor" --inline -cquit
+
+setsid_argv=$(<"$setsid_calls")
+[[ $setsid_argv == $'<-w>\n<uwsm-app>\n<-->\n<gnome-text-editor>\n<-->\n<-cquit>' ]] ||
+  fail "launch-editor --inline gives gnome-text-editor no --wait, which it rejects" "$setsid_argv"
+pass "launch-editor --inline gives gnome-text-editor no --wait, which it rejects"
+
 hook_calls="$test_tmp/hook-calls"
 hook_home="$test_tmp/hook-home"
 printf '#!/bin/bash\n' >"$test_tmp/--help"
